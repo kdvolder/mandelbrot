@@ -102,8 +102,6 @@ public class MandelWindow {
 		
 		private static final int iter_bump_limit = 1000;
 
-		private static final File VIDEO_FILE = new File("saved-videos/capture-"+System.currentTimeMillis()+".mp4");
-
 		private ColorGrid canvas;
 
 		private Random rnd = new Random();
@@ -191,85 +189,85 @@ public class MandelWindow {
 		@Override
 		public void run() {
 			long beginningOfTime = System.currentTimeMillis();
+			int w = canvas.getWidth();
+			int h = canvas.getHeigth();
+			double aspect = (double)w / h;
+			
+			Bounds target = new Bounds();
+			VideoFileWriter video = null;
 			try {
-				int w = canvas.getWidth();
-				int h = canvas.getHeigth();
-				double aspect = (double)w / h;
-				
-				Bounds target = new Bounds();
-	
-				try (VideoFileWriter video = new VideoFileWriter(VIDEO_FILE, w, h, FPS)) {
-					for (int i = 1; i <= MAX_FRAMES && !closeRequested; i++) {
-						double lowx = target.lowx;
-						double highx = target.highx;
-						double lowy = target.lowy;
-						double highy = target.highy;
-						double xfactor = (highx - lowx) / canvas.getWidth();
-						double yfactor = (highy - lowy) / canvas.getHeigth();
-						long start = System.currentTimeMillis();
-						expected_iter_bumps = max_iter_bump;
-						max_iter_bump = 0;
-						double lastx = 1000;
-						double lasty = 1000;
-						for (int k = 0; k < w; k++) {
-							double x = lowx + k * xfactor;
-							if (lastx==x) {
-								zoom_out = true;
-							}
-							lastx = x;
-							for (int r = 0; r < h; r++) {
-								double y = lowy + r * yfactor;
-								Color c = colorMap[mandel(x, y)];
-								canvas.put(k,r,c);
-								if (lasty==y) {
-									zoom_out = true;
-								}
-								lasty = y;
-							}
-						}
-						if (zoom_out) {
-							target = target.zoomOut(full_bounds);
-							if (target.getWidth() >= full_bounds.getWidth()) {
-								zoom_out = false;
-								fly_towards = false;
-							}
-						} else if (fly_towards) {
-							target = target.flyTowards(fly_towards_x, fly_towards_y, aspect);
-							double xmark = (fly_towards_x - lowx) / (highx - lowx) * canvas.getWidth();
-							double ymark = (fly_towards_y - lowy) / (highy - lowy) * canvas.getHeigth();
-							canvas.setMarker(Math.round(xmark), Math.round(ymark));
-						}
-						canvas.repaint();
-						if (max_iter_bump < iter_bump_limit/2) {
-							max_iter--;
-						}
-						if (max_iter > 1500) {
-							zoom_out = true;
-						}
-						video.addFrame(canvas.getImage());
-						if (xfactor < 1E-14) {
-							zoom_out = true;
-						}
-						double completion = ((double)i)/MAX_FRAMES;
-						double computed_f_pre_min =  1000.0 * 60 * i / (System.currentTimeMillis() - beginningOfTime); 
-						double eta = (MAX_FRAMES - i) / computed_f_pre_min;
-						System.out.println(
-								"frame = " + i +
-								" mib = "+max_iter_bump +
-								" mit = "+max_iter +
-								" xfactor = "+ xfactor  +
-								" took "+(System.currentTimeMillis() - start)+" ms " +
-								" "+completion*100+"% " +
-								"  "+ eta + " min"
-						);
+				for (int i = 1; !closeRequested; i++) {
+					if (video == null) {
+						video = new VideoFileWriter(newVideoFile(), w, h, FPS);
 					}
+					double lowx = target.lowx;
+					double highx = target.highx;
+					double lowy = target.lowy;
+					double highy = target.highy;
+					double xfactor = (highx - lowx) / canvas.getWidth();
+					double yfactor = (highy - lowy) / canvas.getHeigth();
+					long start = System.currentTimeMillis();
+					expected_iter_bumps = max_iter_bump;
+					max_iter_bump = 0;
+					for (int k = 0; k < w; k++) {
+						double x = lowx + k * xfactor;
+						for (int r = 0; r < h; r++) {
+							double y = lowy + r * yfactor;
+							Color c = colorMap[mandel(x, y)];
+							canvas.put(k,r,c);
+						}
+					}
+					video.addFrame(canvas.getImage());
+					if (zoom_out) {
+						target = target.zoomOut(full_bounds);
+						if (target.getWidth() >= full_bounds.getWidth()) {
+							zoom_out = false;
+							fly_towards = false;
+							closeRequested |= i >= MAX_FRAMES;
+							video.close();
+							video = null;
+							
+						}
+					} else if (fly_towards) {
+						target = target.flyTowards(fly_towards_x, fly_towards_y, aspect);
+						double xmark = (fly_towards_x - lowx) / (highx - lowx) * canvas.getWidth();
+						double ymark = (fly_towards_y - lowy) / (highy - lowy) * canvas.getHeigth();
+						canvas.setMarker(Math.round(xmark), Math.round(ymark));
+					}
+					canvas.repaint();
+					if (max_iter_bump < iter_bump_limit/2) {
+						max_iter--;
+					}
+					if (xfactor < 1E-14) {
+						zoom_out = true;
+					}
+					double completion = ((double)i)/MAX_FRAMES;
+					double computed_f_pre_min =  1000.0 * 60 * i / (System.currentTimeMillis() - beginningOfTime); 
+					double eta = (MAX_FRAMES - i) / computed_f_pre_min;
+					System.out.println(
+							"frame = " + i +
+							" mib = "+max_iter_bump +
+							" mit = "+max_iter +
+							" xfactor = "+ xfactor  +
+							" took "+(System.currentTimeMillis() - start)+" ms " +
+							" "+completion*100+"% " +
+							"  "+ eta + " min"
+					);
 				}
 			} catch (Exception e) {
 				e.printStackTrace();
+			} finally {
+				if (video!=null) {
+					video.close();
+				}
 			}
 			System.exit(0);
 		}
 		
+		private File newVideoFile() {
+			return new File("saved-videos/zoom-in-out-"+System.currentTimeMillis()+".mp4");
+		}
+
 		public void expandColorMap(int numColors) {
 			Color[] initial = this.colorMap;
 			Color[] expanded = new Color[numColors];
