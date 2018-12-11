@@ -2,11 +2,20 @@ package com.github.kdvolder.mandelbrot;
 
 import java.awt.BorderLayout;
 import java.awt.Color;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
+import java.io.Closeable;
+import java.io.File;
+import java.io.IOException;
 import java.util.Random;
 
 import javax.swing.JFrame;
 
 public class MandelWindow {
+	
+	private static final int VIDEO_LENGTH = 20 * 60;
+	private static final int FPS = 24;
+	private static final int MAX_FRAMES = VIDEO_LENGTH * FPS;
 	
 	static class Bounds {
 		double lowy = -1.25;
@@ -89,9 +98,11 @@ public class MandelWindow {
 	
 	static Bounds full_bounds = new Bounds();
 	
-	public static class Painter implements Runnable {
+	public static class Painter implements Runnable, Closeable {
 		
 		private static final int iter_bump_limit = 1000;
+
+		private static final File VIDEO_FILE = new File("saved-videos/capture-"+System.currentTimeMillis()+".mp4");
 
 		private ColorGrid canvas;
 
@@ -130,6 +141,8 @@ public class MandelWindow {
 		private int max_iter = 1;
 		private int max_iter_bump = 0;
 		int expected_iter_bumps = 0;
+
+		private boolean closeRequested;
 		
 		public Painter(ColorGrid canvas) {
 			this.colorMap = initialColorMap;
@@ -147,7 +160,7 @@ public class MandelWindow {
 				if (zr_square + zi_square > 4.0) {
 					if (iter + 1 >= max_iter) {
 						if (++max_iter_bump%iter_bump_limit==0) { 
-							System.out.println("max_iter = "+max_iter);
+							//System.out.println("max_iter = "+max_iter);
 							max_iter++;
 						}
 						int holdfor = fly_towards ? 150 : 1;
@@ -177,66 +190,84 @@ public class MandelWindow {
 		
 		@Override
 		public void run() {
-			int w = canvas.getWidth();
-			int h = canvas.getHeigth();
-			double aspect = (double)w / h;
-			
-			Bounds target = new Bounds();
-
-			for (int i = 1; true; i++) {
-				double lowx = target.lowx;
-				double highx = target.highx;
-				double lowy = target.lowy;
-				double highy = target.highy;
-				double xfactor = (highx - lowx) / canvas.getWidth();
-				double yfactor = (highy - lowy) / canvas.getHeigth();
-				long start = System.currentTimeMillis();
-				expected_iter_bumps = max_iter_bump;
-				max_iter_bump = 0;
-				double lastx = 1000;
-				double lasty = 1000;
-				for (int k = 0; k < w; k++) {
-					double x = lowx + k * xfactor;
-					if (lastx==x) {
-						zoom_out = true;
-					}
-					lastx = x;
-					for (int r = 0; r < h; r++) {
-						double y = lowy + r * yfactor;
-						Color c = colorMap[mandel(x, y)];
-						canvas.put(k,r,c);
-						if (lasty==y) {
+			long beginningOfTime = System.currentTimeMillis();
+			try {
+				int w = canvas.getWidth();
+				int h = canvas.getHeigth();
+				double aspect = (double)w / h;
+				
+				Bounds target = new Bounds();
+	
+				try (VideoFileWriter video = new VideoFileWriter(VIDEO_FILE, w, h, FPS)) {
+					for (int i = 1; i <= MAX_FRAMES && !closeRequested; i++) {
+						double lowx = target.lowx;
+						double highx = target.highx;
+						double lowy = target.lowy;
+						double highy = target.highy;
+						double xfactor = (highx - lowx) / canvas.getWidth();
+						double yfactor = (highy - lowy) / canvas.getHeigth();
+						long start = System.currentTimeMillis();
+						expected_iter_bumps = max_iter_bump;
+						max_iter_bump = 0;
+						double lastx = 1000;
+						double lasty = 1000;
+						for (int k = 0; k < w; k++) {
+							double x = lowx + k * xfactor;
+							if (lastx==x) {
+								zoom_out = true;
+							}
+							lastx = x;
+							for (int r = 0; r < h; r++) {
+								double y = lowy + r * yfactor;
+								Color c = colorMap[mandel(x, y)];
+								canvas.put(k,r,c);
+								if (lasty==y) {
+									zoom_out = true;
+								}
+								lasty = y;
+							}
+						}
+						if (zoom_out) {
+							target = target.zoomOut(full_bounds);
+							if (target.getWidth() >= full_bounds.getWidth()) {
+								zoom_out = false;
+								fly_towards = false;
+							}
+						} else if (fly_towards) {
+							target = target.flyTowards(fly_towards_x, fly_towards_y, aspect);
+							double xmark = (fly_towards_x - lowx) / (highx - lowx) * canvas.getWidth();
+							double ymark = (fly_towards_y - lowy) / (highy - lowy) * canvas.getHeigth();
+							canvas.setMarker(Math.round(xmark), Math.round(ymark));
+						}
+						canvas.repaint();
+						if (max_iter_bump < iter_bump_limit/2) {
+							max_iter--;
+						}
+						if (max_iter > 1500) {
 							zoom_out = true;
 						}
-						lasty = y;
+						video.addFrame(canvas.getImage());
+						if (xfactor < 1E-14) {
+							zoom_out = true;
+						}
+						double completion = ((double)i)/MAX_FRAMES;
+						double computed_f_pre_min =  1000.0 * 60 * i / (System.currentTimeMillis() - beginningOfTime); 
+						double eta = (MAX_FRAMES - i) / computed_f_pre_min;
+						System.out.println(
+								"frame = " + i +
+								" mib = "+max_iter_bump +
+								" mit = "+max_iter +
+								" xfactor = "+ xfactor  +
+								" took "+(System.currentTimeMillis() - start)+" ms " +
+								" "+completion*100+"% " +
+								"  "+ eta + " min"
+						);
 					}
 				}
-				if (zoom_out) {
-					target = target.zoomOut(full_bounds);
-					if (target.getWidth() >= full_bounds.getWidth()) {
-						zoom_out = false;
-					}
-				} else if (fly_towards) {
-					target = target.flyTowards(fly_towards_x, fly_towards_y, aspect);
-					double xmark = (fly_towards_x - lowx) / (highx - lowx) * canvas.getWidth();
-					double ymark = (fly_towards_y - lowy) / (highy - lowy) * canvas.getHeigth();
-					canvas.setMarker(Math.round(xmark), Math.round(ymark));
-				}
-				canvas.repaint();
-				if (max_iter_bump < iter_bump_limit/2) {
-					max_iter--;
-				}
-				if (max_iter > 1500) {
-					zoom_out = true;
-				}
-				System.out.println(
-						"frame = " + i +
-						" mib = "+max_iter_bump +
-						" mit = "+max_iter +
-						" xstep = "+ ((lowx + xfactor) - lowx) +  " ystep = "+ ((lowy + yfactor) - lowy) +
-						" took "+(System.currentTimeMillis() - start)+" ms"
-				);
+			} catch (Exception e) {
+				e.printStackTrace();
 			}
+			System.exit(0);
 		}
 		
 		public void expandColorMap(int numColors) {
@@ -266,6 +297,11 @@ public class MandelWindow {
 		private int interpol(double interpol, int a, int b) {
 			return (int) Math.round(interpol * b + (1.0 - interpol) * a);
 		}
+
+		@Override
+		public void close() {
+			closeRequested = true;
+		}
 	}
 
 	public static void main(String[] args) {
@@ -275,7 +311,7 @@ public class MandelWindow {
 
 	private void run() {
 		JFrame frame = new JFrame("Mandelbrot");
-		frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+		frame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
 		frame.setLayout(new BorderLayout());
 		
 		ColorGrid mandelbrot = new ColorGrid(1920, 1080); 
@@ -284,6 +320,12 @@ public class MandelWindow {
 		frame.getContentPane().add(mandelbrot.getWidget(), BorderLayout.CENTER);
 		
 		Painter painter = new Painter(mandelbrot);
+		frame.addWindowListener(new WindowAdapter() {
+			@Override
+			public void windowClosed(WindowEvent e) {
+				painter.close();
+			}
+		});
 		new Thread(painter).start();
 
 		frame.pack();

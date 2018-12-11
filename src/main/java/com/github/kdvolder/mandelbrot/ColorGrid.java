@@ -79,4 +79,7 @@ public class ColorGrid {
 		this.xmark = (int) l;
 		this.ymark = (int) m;
 	}
+	public BufferedImage getImage() {
+		return image;
+	}
 }
