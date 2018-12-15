@@ -1,6 +1,9 @@
 package com.github.kdvolder.mandelbrot;
 
 public class Bounds {
+	
+	public static Bounds full_bounds = new Bounds();
+	
 	double lowy = -1.25;
 	double highy = +1.25;
 	double lowx = -3.0;
@@ -76,5 +79,39 @@ public class Bounds {
 
 	public double getHeigth() {
 		return highy - lowy;
+	}
+
+	public Bounds zoomToDimension(double targetWidth, double targetHeight) {
+		double centerx = (lowx + highx)/2;
+		double centery = (lowy + highy)/2;
+		Bounds zoomed = new Bounds();
+		zoomed.lowx = centerx - targetWidth/2; 
+		zoomed.lowy = centery - targetHeight/2;
+		zoomed.highx = zoomed.lowx + targetWidth;
+		zoomed.highy = zoomed.lowy + targetHeight;
+		return zoomed;
+	}
+
+	public double getCenterX() {
+		return (lowx + highx)/2;
+	}
+
+	public double getCenterY() {
+		return (lowy + highy)/2;
+	}
+
+	@Override
+	public String toString() {
+		return "Bounds [x=" + Double.toString(lowx) + " ->x+ " + Double.toString(getWidth()) + ", y=" + Double.toString(lowy) + " ->y+ " + getHeigth() + "]";
+	}
+
+	public Bounds zoomAround(double center_x, double center_y, double zoom_factor) {
+		double ratio = full_bounds.getWidth() / full_bounds.getHeigth();
+		Bounds zoomed = new Bounds();
+		double target_width = getWidth() / zoom_factor;
+		double target_heigth = target_width / ratio;
+		zoomed.lowx = center_x - target_width / 2; zoomed.highx = zoomed.lowx + target_width;
+		zoomed.lowy = center_y - target_heigth / 2; zoomed.highy = zoomed.lowy + target_heigth;
+		return zoomed;
 	}
 }

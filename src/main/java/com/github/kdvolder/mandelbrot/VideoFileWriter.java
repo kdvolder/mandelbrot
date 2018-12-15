@@ -2,7 +2,11 @@ package com.github.kdvolder.mandelbrot;
 
 import java.awt.Dimension;
 import java.awt.image.BufferedImage;
+import java.io.BufferedWriter;
 import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.PrintWriter;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import io.humble.video.Codec;
@@ -32,8 +36,10 @@ public class VideoFileWriter implements AutoCloseable {
 	private BufferedImage conversionBuffer;
 	private MediaPictureConverter converter;
 	private int frameCounter = 0;
+	private File file;
 
 	public VideoFileWriter(File file, int width, int heigth, int framesPerSecond) throws Exception {
+		this.file = file;
 		bounds = new Dimension(width, heigth);
 //		System.out.println("frameRate = " + frameRate +" ["+frameRate.getDouble()+ "]");
 		muxer = Muxer.make(file.getAbsolutePath(), null, formatName);
@@ -100,6 +106,17 @@ public class VideoFileWriter implements AutoCloseable {
 			}
 			conversionBuffer.getGraphics().drawImage(sourceImage, 0, 0, null);
 			return conversionBuffer;
+		}
+	}
+
+	public void writeCompanionTextFile(double centerX, double centerY) throws IOException {
+		String name = file.getName();
+		if (name.endsWith(".mp4")) {
+			name = name.substring(0, name.length() - ".mp4".length()) + ".txt";
+		}
+		try (PrintWriter writer = new PrintWriter(new File(file.getParent(), name))) {
+			writer.println("centerX = "+centerX);
+			writer.println("centerY = "+centerY);
 		}
 	}
 }

@@ -10,16 +10,20 @@ import java.util.Random;
 
 import javax.swing.JFrame;
 
+import static com.github.kdvolder.mandelbrot.Bounds.full_bounds;
+
 public class MandelWindow {
 	
-	private static final int VIDEO_LENGTH = 20 * 60;
+	private static final int VIDEO_LENGTH = 30 * 60;
 	private static final int FPS = 24;
 	private static final int MAX_FRAMES = VIDEO_LENGTH * FPS;
 	
-	static Bounds full_bounds = new Bounds();
+	public static TargetSeeker targetSeeker = new TargetSeeker();
 	
 	public static class Painter implements Runnable, Closeable {
 		
+		private static final double MIN_PIXEL_SIZE = 1E-14;
+
 		private static final int iter_bump_limit = 1000;
 
 		private ColorGrid canvas;
@@ -49,14 +53,15 @@ public class MandelWindow {
 //		};
 
 		private Color[] colorMap;
+		private TargetSeeker targetSeeker = new TargetSeeker();
 
-		private boolean zoom_out = false;
+		private boolean zoom_out = true;
 		
 		private boolean fly_towards = false;
 		private double fly_towards_x = rnd.nextDouble()*4-2.0;
 		private double fly_towards_y = rnd.nextDouble()*4-2.0;
 
-		private int max_iter = 1;
+		private int max_iter = 2000;
 		private int max_iter_bump = 0;
 		int expected_iter_bumps = 0;
 
@@ -80,12 +85,6 @@ public class MandelWindow {
 						if (++max_iter_bump%iter_bump_limit==0) { 
 							//System.out.println("max_iter = "+max_iter);
 							max_iter++;
-						}
-						int holdfor = fly_towards ? 150 : 1;
-						if (expected_iter_bumps>0 && (rnd.nextInt(holdfor*expected_iter_bumps)==0)) {
-							fly_towards = true;
-							fly_towards_x = x;
-							fly_towards_y = y;
 						}
 					}
 					return iter % colorMap.length;
@@ -112,13 +111,43 @@ public class MandelWindow {
 			int w = canvas.getWidth();
 			int h = canvas.getHeigth();
 			double aspect = (double)w / h;
+			Bounds target;
 			
-			Bounds target = new Bounds();
+			//start fully zoomed out:
+			//Bounds target = new Bounds();
+			
+			//start fully zoomed on a point with specific high mandel value:
+//			Point start_point = new TargetSeeker().findPointWithValue(colorMap.length);
+//			Bounds target = new Bounds();
+//			double tw = MIN_PIXEL_SIZE * w;
+//			double th = MIN_PIXEL_SIZE * h;
+//			target.lowx = start_point.x - tw / 2;
+//			target.highx = target.lowx + tw;
+//			target.lowy = start_point.y - th / 2;
+//			target.highy = target.lowy + th;
+//			max_iter = colorMap.length;
+//			System.out.println("mandel("+start_point.x+", "+start_point.y+") = "+mandel(start_point.x, start_point.y));
+//			System.out.println(target);
+//			System.out.println(target.getWidth() +" "+target.getHeigth());
+			
+			{	//Start fully zoomed in using iterative zoom search for interesting region of space.
+				MandelFunction mandel = new MandelFunction(max_iter);
+				target = targetSeeker.find(MIN_PIXEL_SIZE * canvas.getWidth(), mandel);
+				//target = targetSeeker.find(full_bounds.getWidth() / 20, mandel);
+				max_iter = mandel.max_iter;
+			}
+			
 			VideoFileWriter video = null;
 			try {
 				for (int i = 1; !closeRequested; i++) {
 					if (video == null) {
-						video = new VideoFileWriter(newVideoFile(), w, h, FPS);
+						String describe = target.getWidth() >= full_bounds.getWidth() ? "zoom-in-out" : "zoom-out";
+						video = new VideoFileWriter(newVideoFile(describe), w, h, FPS);
+						if (zoom_out) {
+							video.writeCompanionTextFile(target.getCenterX(), target.getCenterY());
+						} else if (fly_towards) {
+							video.writeCompanionTextFile(fly_towards_x, fly_towards_y);
+						}
 					}
 					double lowx = target.lowx;
 					double highx = target.highx;
@@ -129,24 +158,35 @@ public class MandelWindow {
 					long start = System.currentTimeMillis();
 					expected_iter_bumps = max_iter_bump;
 					max_iter_bump = 0;
-					for (int k = 0; k < w; k++) {
-						double x = lowx + k * xfactor;
-						for (int r = 0; r < h; r++) {
-							double y = lowy + r * yfactor;
+					for (int r = 0; r < h; r++) {
+						double y = lowy + r * yfactor;
+						for (int k = 0; k < w; k++) {
+							double x = lowx + k * xfactor;
 							Color c = colorMap[mandel(x, y)];
 							canvas.put(k,r,c);
 						}
 					}
-					video.addFrame(canvas.getImage());
+					if (video!=null) {
+						video.addFrame(canvas.getImage());
+					}
 					if (zoom_out) {
 						target = target.zoomOut(full_bounds);
 						if (target.getWidth() >= full_bounds.getWidth()) {
 							zoom_out = false;
-							fly_towards = false;
-							closeRequested |= i >= MAX_FRAMES;
-							video.close();
-							video = null;
+							fly_towards = true;
 							
+							{	//Start fully zoomed in using iterative zoom search for interesting region of space.
+								MandelFunction mandel = new MandelFunction(max_iter);
+								Bounds zoomTarget = targetSeeker.find(MIN_PIXEL_SIZE * canvas.getWidth(), mandel);
+								//max_iter = mandel.max_iter;
+								fly_towards_x = zoomTarget.getCenterX();
+								fly_towards_y = zoomTarget.getCenterY();
+							}
+							closeRequested |= i >= MAX_FRAMES;
+							if (video!=null) {
+								video.close();
+								video = null;
+							}
 						}
 					} else if (fly_towards) {
 						target = target.flyTowards(fly_towards_x, fly_towards_y, aspect);
@@ -155,10 +195,12 @@ public class MandelWindow {
 						canvas.setMarker(Math.round(xmark), Math.round(ymark));
 					}
 					canvas.repaint();
-					if (max_iter_bump < iter_bump_limit/2) {
+					int reduce_iter_threshold = iter_bump_limit/2;
+					while (max_iter_bump < reduce_iter_threshold) {
 						max_iter--;
+						reduce_iter_threshold /=  2;
 					}
-					if (xfactor < 1E-14) {
+					if (xfactor < MIN_PIXEL_SIZE && max_iter_bump <= iter_bump_limit) {
 						zoom_out = true;
 					}
 					double completion = ((double)i)/MAX_FRAMES;
@@ -169,9 +211,10 @@ public class MandelWindow {
 							" mib = "+max_iter_bump +
 							" mit = "+max_iter +
 							" xfactor = "+ xfactor  +
-							" took "+(System.currentTimeMillis() - start)+" ms " +
+							" took "+(System.currentTimeMillis() - start)+" ms" +
 							" "+completion*100+"% " +
-							"  "+ eta + " min"
+							"  "+ eta + " min"+
+							" "+target
 					);
 				}
 			} catch (Exception e) {
@@ -184,8 +227,8 @@ public class MandelWindow {
 			System.exit(0);
 		}
 		
-		private File newVideoFile() {
-			return new File("saved-videos/zoom-in-out-"+System.currentTimeMillis()+".mp4");
+		private File newVideoFile(String describe) {
+			return new File("saved-videos/"+describe+"-"+System.currentTimeMillis()+".mp4");
 		}
 
 		public void expandColorMap(int numColors) {
