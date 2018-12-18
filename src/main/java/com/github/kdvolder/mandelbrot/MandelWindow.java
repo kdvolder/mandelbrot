@@ -1,5 +1,7 @@
 package com.github.kdvolder.mandelbrot;
 
+import static com.github.kdvolder.mandelbrot.Bounds.full_bounds;
+
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.event.WindowAdapter;
@@ -10,11 +12,9 @@ import java.util.Random;
 
 import javax.swing.JFrame;
 
-import static com.github.kdvolder.mandelbrot.Bounds.full_bounds;
-
 public class MandelWindow {
 	
-	private static final int VIDEO_LENGTH = 30 * 60;
+	private static final int VIDEO_LENGTH = (3 * 60 + 37) * 2;
 	private static final int FPS = 24;
 	private static final int MAX_FRAMES = VIDEO_LENGTH * FPS;
 	
@@ -24,7 +24,7 @@ public class MandelWindow {
 		
 		private static final double MIN_PIXEL_SIZE = 1E-14;
 
-		private static final int iter_bump_limit = 1000;
+		private static final int iter_bump_limit = 500;
 
 		private ColorGrid canvas;
 
@@ -61,7 +61,7 @@ public class MandelWindow {
 		private double fly_towards_x = rnd.nextDouble()*4-2.0;
 		private double fly_towards_y = rnd.nextDouble()*4-2.0;
 
-		private int max_iter = 2000;
+		private int max_iter = 100;
 		private int max_iter_bump = 0;
 		int expected_iter_bumps = 0;
 
@@ -114,38 +114,24 @@ public class MandelWindow {
 			Bounds target;
 			
 			//start fully zoomed out:
-			//Bounds target = new Bounds();
-			
-			//start fully zoomed on a point with specific high mandel value:
-//			Point start_point = new TargetSeeker().findPointWithValue(colorMap.length);
-//			Bounds target = new Bounds();
-//			double tw = MIN_PIXEL_SIZE * w;
-//			double th = MIN_PIXEL_SIZE * h;
-//			target.lowx = start_point.x - tw / 2;
-//			target.highx = target.lowx + tw;
-//			target.lowy = start_point.y - th / 2;
-//			target.highy = target.lowy + th;
-//			max_iter = colorMap.length;
-//			System.out.println("mandel("+start_point.x+", "+start_point.y+") = "+mandel(start_point.x, start_point.y));
-//			System.out.println(target);
-//			System.out.println(target.getWidth() +" "+target.getHeigth());
-			
-			{	//Start fully zoomed in using iterative zoom search for interesting region of space.
-				MandelFunction mandel = new MandelFunction(max_iter);
-				target = targetSeeker.find(MIN_PIXEL_SIZE * canvas.getWidth(), mandel);
-				//target = targetSeeker.find(full_bounds.getWidth() / 20, mandel);
-				max_iter = mandel.max_iter;
-			}
+			target = new Bounds();
+						
+//			{	//Start fully zoomed in using iterative zoom search for interesting region of space.
+//				MandelFunction mandel = new MandelFunction(max_iter);
+//				target = targetSeeker.find(MIN_PIXEL_SIZE * canvas.getWidth(), mandel);
+//				//target = targetSeeker.find(full_bounds.getWidth() / 20, mandel);
+//				max_iter = mandel.max_iter;
+//			}
 			
 			VideoFileWriter video = null;
 			try {
 				for (int i = 1; !closeRequested; i++) {
 					if (video == null) {
-						String describe = target.getWidth() >= full_bounds.getWidth() ? "zoom-in-out" : "zoom-out";
-						video = new VideoFileWriter(newVideoFile(describe), w, h, FPS);
 						if (zoom_out) {
+							video = new VideoFileWriter(newVideoFile("zoom-out"), w, h, FPS);
 							video.writeCompanionTextFile(target.getCenterX(), target.getCenterY());
 						} else if (fly_towards) {
+							video = new VideoFileWriter(newVideoFile("zoom-in-out"), w, h, FPS);
 							video.writeCompanionTextFile(fly_towards_x, fly_towards_y);
 						}
 					}
