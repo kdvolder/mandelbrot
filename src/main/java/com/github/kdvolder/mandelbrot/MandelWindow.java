@@ -24,8 +24,6 @@ public class MandelWindow {
 		
 		private static final double MIN_PIXEL_SIZE = 1E-14;
 
-		private static final int iter_bump_limit = 500;
-
 		private ColorGrid canvas;
 
 		private Random rnd = new Random();
@@ -61,10 +59,8 @@ public class MandelWindow {
 		private double fly_towards_x = rnd.nextDouble()*4-2.0;
 		private double fly_towards_y = rnd.nextDouble()*4-2.0;
 
-		private int max_iter = 100;
-		private int max_iter_bump = 0;
-		int expected_iter_bumps = 0;
-
+		private OldMandelFunction mandel = new OldMandelFunction(100, 100);
+		
 		private boolean closeRequested;
 		
 		public Painter(ColorGrid canvas) {
@@ -73,33 +69,6 @@ public class MandelWindow {
 			this.canvas = canvas;
 		}
 		
-		private int mandel(double x, double y) {
-			int iter = 0;
-			double zr = x;
-			double zi = y;
-			while (iter < max_iter ) {
-				double zr_square = zr*zr;
-				double zi_square = zi*zi;
-				if (zr_square + zi_square > 4.0) {
-					if (iter + 1 >= max_iter) {
-						if (++max_iter_bump%iter_bump_limit==0) { 
-							//System.out.println("max_iter = "+max_iter);
-							max_iter++;
-						}
-					}
-					return iter % colorMap.length;
-				}
-				// (zr + zi * i) * (zr + zi * i) + x + y * i
-				// zr^2 + 2 zr * zi * i - zi^2 + x + y * i
-				// zr^2 - zi^2 + x + (2 zr * zi + y) * i
-				double tmp = zr_square - zi_square + x;
-				zi = 2 * zr * zi + y;
-				zr = tmp;
-				iter ++;
-			}
-			return iter % colorMap.length;
-		}
-
 		public int christmass(double x, double y, double scale) {
 			double z = scale * y * (x * x - y * y);
 			return (int) Math.floorMod((long)z, colorMap.length);
@@ -142,13 +111,12 @@ public class MandelWindow {
 					double xfactor = (highx - lowx) / canvas.getWidth();
 					double yfactor = (highy - lowy) / canvas.getHeigth();
 					long start = System.currentTimeMillis();
-					expected_iter_bumps = max_iter_bump;
-					max_iter_bump = 0;
+					mandel.startSession();
 					for (int r = 0; r < h; r++) {
 						double y = lowy + r * yfactor;
 						for (int k = 0; k < w; k++) {
 							double x = lowx + k * xfactor;
-							Color c = colorMap[mandel(x, y)];
+							Color c = colorMap[mandel.mandel(x, y) % colorMap.length];
 							canvas.put(k,r,c);
 						}
 					}
@@ -162,7 +130,7 @@ public class MandelWindow {
 							fly_towards = true;
 							
 							{	//Start fully zoomed in using iterative zoom search for interesting region of space.
-								MandelFunction mandel = new MandelFunction(max_iter);
+								MandelFunction mandel = new MandelFunction(0);
 								Bounds zoomTarget = targetSeeker.find(MIN_PIXEL_SIZE * canvas.getWidth(), mandel);
 								//max_iter = mandel.max_iter;
 								fly_towards_x = zoomTarget.getCenterX();
@@ -181,21 +149,16 @@ public class MandelWindow {
 						canvas.setMarker(Math.round(xmark), Math.round(ymark));
 					}
 					canvas.repaint();
-					int reduce_iter_threshold = iter_bump_limit/2;
-					while (max_iter_bump < reduce_iter_threshold) {
-						max_iter--;
-						reduce_iter_threshold /=  2;
-					}
-					if (xfactor < MIN_PIXEL_SIZE && max_iter_bump <= iter_bump_limit) {
+					mandel.endSession();
+					if (xfactor < MIN_PIXEL_SIZE) {
 						zoom_out = true;
 					}
 					double completion = ((double)i)/MAX_FRAMES;
 					double computed_f_pre_min =  1000.0 * 60 * i / (System.currentTimeMillis() - beginningOfTime); 
 					double eta = (MAX_FRAMES - i) / computed_f_pre_min;
 					System.out.println(
-							"frame = " + i +
-							" mib = "+max_iter_bump +
-							" mit = "+max_iter +
+							"frame = " + i + 
+							" " + mandel.sessionStats() +
 							" xfactor = "+ xfactor  +
 							" took "+(System.currentTimeMillis() - start)+" ms" +
 							" "+completion*100+"% " +
