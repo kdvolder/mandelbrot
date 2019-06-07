@@ -66,13 +66,8 @@ public class MandelWindow {
 		
 		public Painter(ColorGrid canvas) {
 			this.colorMap = initialColorMap;
-			expandColorMap(400);
+			expandColorMap(40000);
 			this.canvas = canvas;
-		}
-		
-		public int christmass(double x, double y, double scale) {
-			double z = scale * y * (x * x - y * y);
-			return (int) Math.floorMod((long)z, colorMap.length);
 		}
 		
 		@Override
@@ -188,7 +183,8 @@ public class MandelWindow {
 			Color[] expanded = new Color[numColors];
 			for (int t = 0; t < expanded.length; t++) {
 				// if t == colorMap.length - 1 => s =  initial.length - 1
-				double s = ((double)t) * (initial.length - 1) / (expanded.length - 1);
+				//double s = ((double)t) * (initial.length - 1) / (expanded.length - 1);
+				double s = (1.0 - 1.0 / (t/300.0 + 1.0)) * (initial.length - 1);
 				int s0 = (int)Math.floor(s);
 				int s1 = (int)Math.ceil(s);
 				if (s0==s1) {
@@ -205,6 +201,7 @@ public class MandelWindow {
 				}
 			}
 			this.colorMap = expanded;
+			System.out.println("last-color = " + this.colorMap[colorMap.length-1]);
 		}
 
 		private int interpol(double interpol, int a, int b) {
