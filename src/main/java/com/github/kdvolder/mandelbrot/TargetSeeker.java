@@ -20,7 +20,7 @@ public class TargetSeeker {
 	 */
 	public Bounds find(double desiredWidth, MandelFunction mandel) {
 		mandel.max_iter = 1;
-		int required_streak_length = 2000;
+		int required_streak_length = rnd.nextInt(5000)+500;
 		
 		double cand_x = 0, cand_y = 0;
 		Bounds bounds = initialBounds;
