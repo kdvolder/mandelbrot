@@ -14,7 +14,7 @@ import javax.swing.JFrame;
 
 public class MandelWindow {
 	
-	private static final int VIDEO_LENGTH = (3 * 60 + 37) * 2;
+	private static final int VIDEO_LENGTH = (3 * 60 + 37) * 1;
 	private static final int FPS = 24;
 	private static final int MAX_FRAMES = VIDEO_LENGTH * FPS;
 	
@@ -59,7 +59,8 @@ public class MandelWindow {
 		private double fly_towards_x = rnd.nextDouble()*4-2.0;
 		private double fly_towards_y = rnd.nextDouble()*4-2.0;
 
-		private OldMandelFunction mandel = new OldMandelFunction(100, 100);
+		//private OldMandelFunction mandel = new OldMandelFunction(100, 100);
+		private UnlimitedMandelFunction mandel = new UnlimitedMandelFunction();
 		
 		private boolean closeRequested;
 		
@@ -118,6 +119,8 @@ public class MandelWindow {
 							double x = lowx + k * xfactor;
 							Color c = colorMap[mandel.mandel(x, y) % colorMap.length];
 							canvas.put(k,r,c);
+//							canvas.setMarker(Math.round(k), Math.round(r));
+//							canvas.repaint();
 						}
 					}
 					if (video!=null) {
