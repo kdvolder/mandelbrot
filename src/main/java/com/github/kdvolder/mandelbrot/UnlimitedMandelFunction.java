@@ -1,7 +1,5 @@
 package com.github.kdvolder.mandelbrot;
 
-import javax.print.CancelablePrintJob;
-
 /**
  * Mandelfunction without a 'max_iter'. Instead it detects
  * whether the iteration hits a cycle.
@@ -11,6 +9,8 @@ public class UnlimitedMandelFunction {
 	private static final int NO_ESCAPE = 0;
 	
 	private int max_no_escape_iter = 0;
+	private int min_iter = Integer.MAX_VALUE;
+	private int max_iter = 0;
 	
 	public UnlimitedMandelFunction() {
 	}
@@ -30,6 +30,8 @@ public class UnlimitedMandelFunction {
 			double zi_square = zi*zi;
 			double len_squared = zr_square + zi_square;
 			if (len_squared > 4.0) {
+				min_iter = Math.min(min_iter, iter);
+				max_iter = Math.max(max_iter, iter);
 				return iter;
 			} else if (len_squared < shortest) {
 				//System.out.println(len_squared);
@@ -61,12 +63,15 @@ public class UnlimitedMandelFunction {
 	}
 
 	public void startSession() {
+		max_no_escape_iter = 0;
+		min_iter = Integer.MAX_VALUE;
+		max_iter = 0;
 	}
 	public void endSession() {
 	}
 
 	public String sessionStats() {
-		return "mnei = "+max_no_escape_iter;
+		return "mnei = "+max_no_escape_iter +" min="+min_iter+" max="+max_iter;
 	}
 
 }
