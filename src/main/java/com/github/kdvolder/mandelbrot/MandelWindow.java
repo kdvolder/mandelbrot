@@ -9,6 +9,9 @@ import java.awt.event.WindowEvent;
 import java.io.Closeable;
 import java.io.File;
 import java.util.Random;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
 import javax.swing.JFrame;
 
@@ -21,6 +24,8 @@ public class MandelWindow {
 	public static TargetSeeker targetSeeker = new TargetSeeker();
 	
 	public static class Painter implements Runnable, Closeable {
+		
+		private ExecutorService executors = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
 		
 		private static final double MIN_PIXEL_SIZE = 1E-14;
 
@@ -89,6 +94,7 @@ public class MandelWindow {
 //			}
 			
 			VideoFileWriter video = null;
+			Future<?>[] futures = new Future<?>[h];
 			try {
 				for (int i = 1; !closeRequested; i++) {
 					if (video == null) {
@@ -109,14 +115,10 @@ public class MandelWindow {
 					long start = System.currentTimeMillis();
 					mandel.startSession();
 					for (int r = 0; r < h; r++) {
-						double y = lowy + r * yfactor;
-						for (int k = 0; k < w; k++) {
-							double x = lowx + k * xfactor;
-							Color c = colorMap[mandel.mandel(x, y) % colorMap.length];
-							canvas.put(k,r,c);
-//							canvas.setMarker(Math.round(k), Math.round(r));
-//							canvas.repaint();
-						}
+						futures[r] = paintLine(w, lowx, lowy, xfactor, yfactor, r);
+					}
+					for (int r = 0; r < futures.length; r++) {
+						futures[r].get();
 					}
 					if (video!=null) {
 						video.addFrame(canvas.getImage());
@@ -126,7 +128,6 @@ public class MandelWindow {
 						if (target.getWidth() >= full_bounds.getWidth()) {
 							zoom_out = false;
 							fly_towards = true;
-							
 							{	//Start fully zoomed in using iterative zoom search for interesting region of space.
 								MandelFunction mandel = new MandelFunction(0);
 								Bounds zoomTarget = targetSeeker.find(MIN_PIXEL_SIZE * canvas.getWidth(), mandel);
@@ -172,6 +173,19 @@ public class MandelWindow {
 				}
 			}
 			System.exit(0);
+		}
+
+		private Future<?> paintLine(int w, double lowx, double lowy, double xfactor, double yfactor, int r) {
+			return executors.submit(() -> {
+				double y = lowy + r * yfactor;
+				for (int k = 0; k < w; k++) {
+					double x = lowx + k * xfactor;
+					Color c = colorMap[mandel.mandel(x, y) % colorMap.length];
+					canvas.put(k,r,c);
+	//							canvas.setMarker(Math.round(k), Math.round(r));
+	//							canvas.repaint();
+				}
+			});
 		}
 		
 		private File newVideoFile(String describe) {

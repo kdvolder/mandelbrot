@@ -42,9 +42,10 @@ public class ColorGrid {
 
 	private Widget widget = new Widget();
 	
-	public void put(int x, int y, Color c) {
-		g.setColor(c);
-		g.fillRect(x, y, 1, 1);
+	public /*synchronized*/ void put(int x, int y, Color c) {
+		image.setRGB(x, y, c.getRGB());
+//		g.setColor(c);
+//		g.fillRect(x, y, 1, 1);
 	}
 	public void repaint() {
 		widget.repaint();
@@ -53,7 +54,7 @@ public class ColorGrid {
 	private int w;
 	private int h;
 	private BufferedImage image;
-	private Graphics2D g;
+//	private Graphics2D g;
 	private int xmark;
 	private int ymark;
 
@@ -61,7 +62,7 @@ public class ColorGrid {
 		this.w = w;
 		this.h = h;
 		this.image = new BufferedImage(w, h, BufferedImage.TYPE_INT_RGB);
-		this.g = (Graphics2D) image.getGraphics();
+//		this.g = (Graphics2D) image.getGraphics();
 	}
 
 	public Component getWidget() {
