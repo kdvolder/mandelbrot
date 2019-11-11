@@ -10,17 +10,24 @@ import java.util.Random;
  */
 public class TargetSeeker {
 	
-	private final Random rnd = new Random();
+	private final Random rnd = MandelWindow.benchmark?new Random(12466):new Random();
 	
 	private final Bounds initialBounds = new Bounds();
+
+	private int hardness = 250;
+
+	public int finalMaxIter;
 	
 	/**
 	 * Search for a interesting region of space with a given width.
 	 * @param mandel 
 	 */
 	public Bounds find(double desiredWidth, MandelFunction mandel) {
+		System.out.println("harndess =" +hardness);
 		mandel.max_iter = 1;
-		int required_streak_length = rnd.nextInt(5000)+500;
+		int required_streak_length = hardness;
+		hardness *= 2;
+		System.out.println("Target seeker hardness = "+required_streak_length);
 		
 		double cand_x = 0, cand_y = 0;
 		Bounds bounds = initialBounds;
@@ -32,20 +39,23 @@ public class TargetSeeker {
 			//search bounds. We only consider a iter value high if it is 'hard' to
 			//find another point within that space that has a higher count.
 			int i = 0;
-			while (i++ < required_streak_length) {
+			boolean found_better = false;
+			while (i++ < required_streak_length /*|| !found_better*/) {
 				double x = bounds.lowx + rnd.nextDouble() * bounds.getWidth();
 				double y = bounds.lowy + rnd.nextDouble() * bounds.getHeigth();
 				int m = mandel.mandel(x, y);
 				if (m == mandel.max_iter-1) {
 					cand_x = x;
 					cand_y = y;
+					found_better = true;
 					i = 0; // reset streak counter
 					mandel.max_iter ++; // search for higher max iter
 //					System.out.println(mandel.max_iter);
 				}
 			}
-			bounds = bounds.zoomAround(cand_x, cand_y, 2.0);
-			System.out.println(bounds + " w = "+ bounds.getWidth());
+			bounds = bounds.zoomAround(cand_x, cand_y, 1.1);
+			System.out.println(bounds + " w = "+ bounds.getWidth() + "max_iter = "+mandel.max_iter);
+			finalMaxIter = mandel.max_iter;
 		}
 		return bounds.zoomToDimension(desiredWidth, desiredWidth * Bounds.full_bounds.getHeigth() / Bounds.full_bounds.getWidth());
 	}

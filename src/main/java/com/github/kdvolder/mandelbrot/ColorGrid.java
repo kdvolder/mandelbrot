@@ -5,7 +5,6 @@ import java.awt.Color;
 import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.Graphics;
-import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
 
 public class ColorGrid {
@@ -42,8 +41,8 @@ public class ColorGrid {
 
 	private Widget widget = new Widget();
 	
-	public /*synchronized*/ void put(int x, int y, Color c) {
-		image.setRGB(x, y, c.getRGB());
+	public /*synchronized*/ void put(int x, int y, int c) {
+		image.setRGB(x, y, c);
 //		g.setColor(c);
 //		g.fillRect(x, y, 1, 1);
 	}

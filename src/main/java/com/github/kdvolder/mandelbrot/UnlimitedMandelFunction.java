@@ -6,13 +6,16 @@ package com.github.kdvolder.mandelbrot;
  */
 public class UnlimitedMandelFunction {
 
-	private static final int NO_ESCAPE = 0;
+	private final int LIMIT; // = 1 << 20;
+
+	public static final int NO_ESCAPE = -1;
 	
 	private int max_no_escape_iter = 0;
-	private int min_iter = Integer.MAX_VALUE;
+	public int min_iter = Integer.MAX_VALUE;
 	private int max_iter = 0;
 	
-	public UnlimitedMandelFunction() {
+	public UnlimitedMandelFunction(int hardIterLimit) {
+		this.LIMIT = hardIterLimit;
 	}
 
 	public int mandel(double x, double y) {
@@ -24,7 +27,7 @@ public class UnlimitedMandelFunction {
 		double cycle_i = 0;
 		long deadline = 1;
 //		System.out.println("deadline = "+deadline);
-		double shortest = 4.0;
+//		double shortest = 4.0;
 		while (zr != cycle_r || zi != cycle_i) {
 			double zr_square = zr*zr;
 			double zi_square = zi*zi;
@@ -33,18 +36,18 @@ public class UnlimitedMandelFunction {
 				min_iter = Math.min(min_iter, iter);
 				max_iter = Math.max(max_iter, iter);
 				return iter;
-			} else if (len_squared < shortest) {
-				//System.out.println(len_squared);
-				cycle_i = zi;
-				cycle_r = zr;
-				shortest = len_squared;
+//			} else if (len_squared < shortest) {
+//				//System.out.println(len_squared);
+//				cycle_i = zi;
+//				cycle_r = zr;
+//				shortest = len_squared;
 			}
 			if (iter>=deadline) {
 				deadline *= 2;
 				//System.out.println("deadline = "+deadline);
 				cycle_i = zi;
 				cycle_r = zr;
-				shortest = len_squared;
+//				shortest = len_squared;
 			}
 			// (zr + zi * i) * (zr + zi * i) + x + y * i
 			// zr^2 + 2 zr * zi * i - zi^2 + x + y * i
@@ -53,8 +56,9 @@ public class UnlimitedMandelFunction {
 			zi = 2 * zr * zi + y;
 			zr = tmp;
 			iter ++;
-			if (iter> 1 << 17) {
+			if (iter> LIMIT) { 
 //				System.out.println("HARD x = "+x +" y = "+y);
+				max_no_escape_iter = Math.max(max_no_escape_iter, iter);
 				return NO_ESCAPE;
 			}
 		}
