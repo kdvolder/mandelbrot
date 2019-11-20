@@ -2,6 +2,17 @@ package com.github.kdvolder.mandelbrot;
 
 public class Bounds {
 	
+	public static Bounds withCenterAndWidth(Point center, double width) {
+		double aspect = full_bounds.getAspect();
+		double heigth = width / aspect;
+		Bounds bounds = new Bounds();
+		bounds.lowx = center.x - width / 2;
+		bounds.lowy = center.y - heigth / 2;
+		bounds.highx = bounds.lowx + width;
+		bounds.highy = bounds.lowy + heigth;
+		return bounds;
+	}
+	
 	public static Bounds full_bounds = new Bounds();
 	
 	double lowy = -1.25;

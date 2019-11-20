@@ -26,9 +26,7 @@ public class MandelWindow {
 	private static final int VIDEO_LENGTH = (3 * 60 + 37) * NUM_VIDEOS;
 	private static final int FPS = 24;
 	private static final int MAX_FRAMES = VIDEO_LENGTH * FPS;
-	
-	public static TargetSeeker targetSeeker = new TargetSeeker();
-	
+		
 	public static class Painter implements Runnable, Closeable {
 		
 		private ExecutorService executors = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
@@ -79,7 +77,7 @@ public class MandelWindow {
 		// };
 
 		private int[] colorMap;
-		private TargetSeeker targetSeeker = new TargetSeeker();
+		private TargetSeeker targetSeeker = new TargetSeekerWithRequiredStreak();
 
 		private boolean zoom_out = true;
 
@@ -88,7 +86,7 @@ public class MandelWindow {
 		private double fly_towards_y = 0; // rnd.nextDouble()*4-2.0;
 
 		// private OldMandelFunction mandel = new OldMandelFunction(100, 100);
-		private UnlimitedMandelFunction mandel;
+		private CycleDetectingMandelFunction mandel;
 		
 		private boolean closeRequested;
 
@@ -209,9 +207,8 @@ public class MandelWindow {
 			zoom_out = false;
 			fly_towards = true;
 			{ // Set fly_towards target.
-				MandelFunction mandel = new MandelFunction(0);
-				Bounds zoomTarget = targetSeeker.find(MIN_PIXEL_SIZE * canvas.getWidth(), mandel);
-				this.mandel = new UnlimitedMandelFunction(1<<20 /*mandel.max_iter+5_000*/);
+				Bounds zoomTarget = targetSeeker.find(MIN_PIXEL_SIZE * canvas.getWidth());
+				this.mandel = new CycleDetectingMandelFunction(1<<20 /*mandel.max_iter+5_000*/);
 				fly_towards_x = zoomTarget.getCenterX();
 				fly_towards_y = zoomTarget.getCenterY();
 			}
@@ -226,7 +223,7 @@ public class MandelWindow {
 					double x = lowx + k * xfactor;
 					int c;
 					int m = mandel.mandel(x, y);
-					if (m==UnlimitedMandelFunction.NO_ESCAPE) {
+					if (m==CycleDetectingMandelFunction.NO_ESCAPE) {
 						c = NO_ESCAPE_COLOR;
 					} else {
 						double colorRange = numColors * 255;

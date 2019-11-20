@@ -1,10 +1,10 @@
 package com.github.kdvolder.mandelbrot;
 
-public class MandelFunction {
+public class BasicMandelFunction {
 
 	public int max_iter = 2000;
 	
-	public MandelFunction(int max_iter) {
+	public BasicMandelFunction(int max_iter) {
 		this.max_iter = max_iter;
 	}
 

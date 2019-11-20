@@ -4,7 +4,7 @@ package com.github.kdvolder.mandelbrot;
  * Mandelfunction without a 'max_iter'. Instead it detects
  * whether the iteration hits a cycle.
  */
-public class UnlimitedMandelFunction {
+public class CycleDetectingMandelFunction {
 
 	private final int LIMIT; // = 1 << 20;
 
@@ -14,7 +14,7 @@ public class UnlimitedMandelFunction {
 	public int min_iter = Integer.MAX_VALUE;
 	private int max_iter = 0;
 	
-	public UnlimitedMandelFunction(int hardIterLimit) {
+	public CycleDetectingMandelFunction(int hardIterLimit) {
 		this.LIMIT = hardIterLimit;
 	}
 

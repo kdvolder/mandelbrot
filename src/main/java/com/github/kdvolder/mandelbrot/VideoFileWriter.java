@@ -1,10 +1,7 @@
 package com.github.kdvolder.mandelbrot;
 
-import java.awt.Dimension;
 import java.awt.image.BufferedImage;
-import java.io.BufferedWriter;
 import java.io.File;
-import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -24,7 +21,6 @@ import io.humble.video.awt.MediaPictureConverterFactory;
 public class VideoFileWriter implements AutoCloseable {
 
 	private String formatName = "mp4";
-	private final Dimension bounds;
 	private final Muxer muxer;
 	private final MuxerFormat format;
 	private final Codec codec;
@@ -40,7 +36,6 @@ public class VideoFileWriter implements AutoCloseable {
 
 	public VideoFileWriter(File file, int width, int heigth, int framesPerSecond) throws Exception {
 		this.file = file;
-		bounds = new Dimension(width, heigth);
 //		System.out.println("frameRate = " + frameRate +" ["+frameRate.getDouble()+ "]");
 		muxer = Muxer.make(file.getAbsolutePath(), null, formatName);
 		format = muxer.getFormat();
